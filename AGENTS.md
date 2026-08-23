@@ -151,6 +151,11 @@ archive that will ship. A source-text test does not prove that a real move worke
 - Sparkle feed with a pinned EdDSA public key
 - SHA-256 checksum with every public DMG
 
+`scripts/build-app.sh` must sign Sparkle's XPC services, updater app, autoupdate tool, framework,
+and main app in that order. Every public component needs a Developer ID signature and secure
+timestamp. The main app must not contain `com.apple.security.get-task-allow`. Do not rely on
+Xcode's outer app signature because Sparkle's downloaded helper tools use ad hoc signatures.
+
 `scripts/release.sh` uses local Apple and Sparkle credentials. Never commit signing identities,
 notary credentials, private keys, `release.env`, or release artifacts.
 

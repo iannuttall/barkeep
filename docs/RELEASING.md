@@ -35,6 +35,10 @@ make install
 The app goes to `~/Applications/Barkeep.app`. Keep the path and signing identity stable while you
 test Accessibility behavior. A changed identity can make macOS treat the app as a new program.
 
+The build script signs each Sparkle helper before it signs the framework and main app. It rejects a
+public build when a component has no Developer ID signature or secure timestamp. It also rejects
+the debug `get-task-allow` entitlement before the app reaches Apple.
+
 Check each real behavior before a public build.
 
 - The app launches with no window and stays in the menu bar.
