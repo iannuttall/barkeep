@@ -132,16 +132,17 @@ print -r -- "DMG_PATH='$dmg_path'" >> release.env
 print -r -- "SHA256_PATH='$dmg_path.sha256'" >> release.env
 
 if [[ "$publish" == "1" ]]; then
-    # Publish the download first. The feed cannot point at a missing file.
+    # Stage the download first. GitHub publishes it after the appcast is pushed.
     gh release create "v$version" \
         "$dmg_path" \
         "$dmg_path.sha256" \
         --title "Barkeep $version" \
-        --notes-file "$notes_file"
+        --notes-file "$notes_file" \
+        --draft
 
     if ! git diff --quiet -- appcast.xml; then
         git add appcast.xml
-        git commit -m "chore(release): Barkeep $version"
+        git commit -m "chore(release): publish $version appcast"
     fi
     git push origin HEAD
 fi

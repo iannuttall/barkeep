@@ -1,0 +1,103 @@
+name: Publish Sparkle release
+
+on:
+  push:
+    branches: [main]
+    paths: [appcast.xml]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-sparkle-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Read newest appcast item
+        id: appcast
+        env:
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          python3 <<'PY'
+          import os
+          import re
+          import xml.etree.ElementTree as ET
+
+          sparkle = "{http://www.andymatuschak.org/xml-namespaces/sparkle}"
+          item = ET.parse("appcast.xml").getroot().find("./channel/item")
+          if item is None:
+              raise SystemExit("appcast.xml has no release item")
+
+          version = item.findtext(f"{sparkle}shortVersionString", "").strip()
+          build = item.findtext(f"{sparkle}version", "").strip()
+          enclosure = item.find("enclosure")
+          if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", version):
+              raise SystemExit(f"invalid release version: {version!r}")
+          if not build.isdigit() or enclosure is None:
+              raise SystemExit("newest appcast item has invalid build metadata")
+
+          asset = f"Barkeep-{version}.dmg"
+          checksum = f"{asset}.sha256"
+          expected_url = (
+              f"https://github.com/{os.environ['REPOSITORY']}"
+              f"/releases/download/v{version}/{asset}"
+          )
+          length = enclosure.get("length", "")
+          signature = enclosure.get(f"{sparkle}edSignature", "")
+          if enclosure.get("url") != expected_url:
+              raise SystemExit("newest appcast URL does not match its version")
+          if not length.isdigit() or int(length) <= 0:
+              raise SystemExit("newest appcast item has an invalid length")
+          if not signature or signature == "PASTE_SIGNATURE":
+              raise SystemExit("newest appcast item has no Sparkle signature")
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"tag=v{version}\n")
+              output.write(f"asset={asset}\n")
+              output.write(f"checksum={checksum}\n")
+              output.write(f"length={length}\n")
+          PY
+
+      - name: Validate staged release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.appcast.outputs.tag }}
+          ASSET: ${{ steps.appcast.outputs.asset }}
+          CHECKSUM: ${{ steps.appcast.outputs.checksum }}
+          EXPECTED_LENGTH: ${{ steps.appcast.outputs.length }}
+        run: |
+          release_json="$(gh release view "$TAG" --json isDraft,assets)"
+          jq -e \
+            --arg name "$ASSET" \
+            --argjson size "$EXPECTED_LENGTH" \
+            '.assets[] | select(.name == $name and .size == $size and .state == "uploaded")' \
+            <<<"$release_json" >/dev/null
+          jq -e \
+            --arg name "$CHECKSUM" \
+            '.assets[] | select(.name == $name and .state == "uploaded")' \
+            <<<"$release_json" >/dev/null
+
+          release_dir="$RUNNER_TEMP/barkeep-release"
+          mkdir -p "$release_dir"
+          gh release download "$TAG" \
+            --pattern "$ASSET" \
+            --pattern "$CHECKSUM" \
+            --dir "$release_dir"
+          (cd "$release_dir" && sha256sum -c "$CHECKSUM")
+
+          is_draft="$(jq -r '.isDraft' <<<"$release_json")"
+          echo "publish=$is_draft" >> "$GITHUB_OUTPUT"
+
+      - name: Publish release at merged commit
+        if: steps.release.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.appcast.outputs.tag }}
+        run: gh release edit "$TAG" --draft=false --latest --target "$GITHUB_SHA"

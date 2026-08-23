@@ -28,31 +28,25 @@ The release command builds, signs, launches, creates the DMG, notarizes, staples
 checks Gatekeeper, signs the Sparkle update, updates `appcast.xml`, and writes a
 SHA-256 file.
 
-## Publish from GitHub
+## Publish a release
 
-Update `RELEASE_NOTES.md`. Then increase both values in `version.env` and merge
-the change to `main`. GitHub Actions will:
+Update `RELEASE_NOTES.md`. Increase both values in `version.env`, commit the
+change, and make sure `main` is clean and current. Then run:
 
-- build and test the app;
-- sign the app and DMG with Developer ID;
-- notarize and staple the DMG;
-- sign the update with Sparkle;
-- create the GitHub release and tag; and
-- commit the new appcast entry to `main`.
+```sh
+make publish
+```
 
-The release workflow needs these GitHub Actions secrets:
+The local command uses the shared Developer ID certificate, the `portmanager`
+notarization profile, and the Sparkle key in the login Keychain. It builds,
+signs, notarizes, staples, and verifies the app. It then creates a draft GitHub
+release and pushes the signed appcast.
 
-- `CERTIFICATE_P12_BASE64`
-- `CERTIFICATE_PASSWORD`
-- `KEYCHAIN_PASSWORD`
-- `ASC_PRIVATE_KEY_BASE64`
-- `ASC_KEY_ID`
-- `ASC_ISSUER_ID`
-- `SPARKLE_PRIVATE_KEY`
+GitHub checks the DMG size and checksum. It publishes the draft only after the
+appcast reaches `main`. GitHub does not store Apple or Sparkle private keys.
 
 The repository must be public at `iannuttall/barkeep`. Installed apps read the
 update feed from its `main` branch.
 
 The Sparkle public key is pinned in `Info.plist`. Its private key stays in the
-login keychain and in the encrypted GitHub secret. Do not change either key
-after the first release.
+login Keychain. Do not change either key after the first release.
