@@ -1,0 +1,58 @@
+name: Barkeep
+options:
+  bundleIdPrefix: is.ian
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    CLANG_ENABLE_MODULES: YES
+    ENABLE_HARDENED_RUNTIME: YES
+    CODE_SIGN_STYLE: Automatic
+packages:
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    exactVersion: 2.9.6
+targets:
+  Barkeep:
+    type: application
+    platform: macOS
+    sources:
+      - path: Sources/Barkeep
+    dependencies:
+      - package: Sparkle
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: is.ian.barkeep
+        PRODUCT_NAME: Barkeep
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: Sources/Barkeep/Info.plist
+        MARKETING_VERSION: 0.1.0
+        CURRENT_PROJECT_VERSION: 1
+        SWIFT_STRICT_CONCURRENCY: complete
+    entitlements:
+      path: Sources/Barkeep/Barkeep.entitlements
+      properties:
+        com.apple.security.app-sandbox: false
+  BarkeepTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: Tests/BarkeepTests
+    dependencies:
+      - target: Barkeep
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: is.ian.barkeep.tests
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  Barkeep:
+    build:
+      targets:
+        Barkeep: all
+        BarkeepTests: [test]
+    test:
+      targets:
+        - BarkeepTests
