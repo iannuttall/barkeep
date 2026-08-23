@@ -157,6 +157,10 @@ final class StatusBarEngine: NSObject {
     @objc private func handleControlClick(_ sender: NSStatusBarButton) {
         guard let event = NSApp.currentEvent else { return }
         if event.type == .rightMouseUp {
+            defer {
+                sender.highlight(false)
+                sender.state = .off
+            }
             if let menu = menuProvider?() {
                 NSMenu.popUpContextMenu(menu, with: event, for: sender)
             }
