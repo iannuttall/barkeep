@@ -56,6 +56,21 @@ final class BarkeepTests: XCTestCase {
         XCTAssertEqual(second.rules[item.id]?.zone, .alwaysVisible)
     }
 
+    @MainActor
+    func testSettingsUpdateNotifiesObservers() {
+        let baseURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let store = StateStore(baseURL: baseURL)
+        var notifications = 0
+        let subscription = store.objectWillChange.sink { notifications += 1 }
+
+        store.updateSettings { $0.showOnHover = true }
+
+        XCTAssertTrue(store.settings.showOnHover)
+        XCTAssertGreaterThanOrEqual(notifications, 1)
+        withExtendedLifetime(subscription) {}
+    }
+
     func testAllIconsRenderAtNativeSize() {
         for style in BarkeepIconStyle.allCases {
             let image = BarkeepIconFactory.image(for: style, expanded: false)

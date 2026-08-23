@@ -211,39 +211,47 @@ private struct BehaviorSettingsView: View {
     var body: some View {
         Form {
             Section("Show and hide") {
-                Toggle("Hide items again", isOn: setting(\.autoRehide))
-                LabeledContent("Hide delay") {
-                    Stepper(
-                        "\(store.settings.rehideDelay, specifier: "%.0f") seconds",
-                        value: setting(\.rehideDelay),
-                        in: 1...60,
-                        step: 1
-                    )
-                    .disabled(!store.settings.autoRehide)
+                SettingsToggle("Hide items again", isOn: setting(\.autoRehide))
+                if store.settings.autoRehide {
+                    LabeledContent("Hide delay") {
+                        Stepper(
+                            "\(store.settings.rehideDelay, specifier: "%.0f") seconds",
+                            value: setting(\.rehideDelay),
+                            in: 1...60,
+                            step: 1
+                        )
+                    }
                 }
-                Toggle("Hide when the active app changes", isOn: setting(\.hideOnAppChange))
+                SettingsToggle("Hide when the active app changes", isOn: setting(\.hideOnAppChange))
             }
             Section("Ways to reveal") {
-                Toggle("Click the menu bar", isOn: setting(\.showOnMenuBarClick))
-                Toggle("Hover over the menu bar", isOn: setting(\.showOnHover))
-                LabeledContent("Hover delay") {
-                    Stepper(
-                        "\(store.settings.hoverDelay, specifier: "%.1f") seconds",
-                        value: setting(\.hoverDelay),
-                        in: 0.2...3,
-                        step: 0.1
-                    )
-                    .disabled(!store.settings.showOnHover)
+                SettingsToggle("Click the menu bar", isOn: setting(\.showOnMenuBarClick))
+                SettingsToggle("Hover over the menu bar", isOn: setting(\.showOnHover))
+                if store.settings.showOnHover {
+                    LabeledContent("Hover delay") {
+                        Stepper(
+                            "\(store.settings.hoverDelay, specifier: "%.1f") seconds",
+                            value: setting(\.hoverDelay),
+                            in: 0.2...3,
+                            step: 0.1
+                        )
+                    }
                 }
-                Toggle("Scroll in the menu bar", isOn: setting(\.showOnScroll))
-                Toggle("Keep items open with an external display", isOn: setting(\.alwaysShowOnExternalDisplay))
+                SettingsToggle("Scroll in the menu bar", isOn: setting(\.showOnScroll))
+                SettingsToggle(
+                    "Keep items open with an external display",
+                    isOn: setting(\.alwaysShowOnExternalDisplay)
+                )
             }
             Section("Privacy") {
-                Toggle("Use Touch ID or the Mac password before reveal", isOn: setting(\.requireAuthentication))
+                SettingsToggle(
+                    "Use Touch ID or the Mac password before reveal",
+                    isOn: setting(\.requireAuthentication)
+                )
             }
             Section("App") {
-                Toggle("Start Barkeep at login", isOn: setting(\.launchAtLogin))
-                Toggle("Show Barkeep in the Dock", isOn: setting(\.showDockIcon))
+                SettingsToggle("Start Barkeep at login", isOn: setting(\.launchAtLogin))
+                SettingsToggle("Show Barkeep in the Dock", isOn: setting(\.showDockIcon))
             }
             Section("Keyboard shortcuts") {
                 LabeledContent("Show or hide items", value: "⌘\\")
@@ -300,20 +308,18 @@ private struct AppearanceSettingsView: View {
                     }
                 }
             }
-            Section("Browse view") {
-                Picker("Open hidden items in", selection: setting(\.browseStyle)) {
-                    ForEach(BrowseStyle.allCases) { style in
-                        Text(style.title).tag(style)
-                    }
-                }
-            }
             Section("Item spacing") {
-                Toggle("Use tighter menu bar item spacing", isOn: setting(\.reduceItemSpacing))
-                LabeledContent("Spacing") {
-                    Stepper("\(store.settings.itemSpacing)", value: setting(\.itemSpacing), in: 0...12)
-                }
-                LabeledContent("Padding") {
-                    Stepper("\(store.settings.itemPadding)", value: setting(\.itemPadding), in: 0...12)
+                SettingsToggle(
+                    "Use tighter menu bar item spacing",
+                    isOn: setting(\.reduceItemSpacing)
+                )
+                if store.settings.reduceItemSpacing {
+                    LabeledContent("Spacing") {
+                        Stepper("\(store.settings.itemSpacing)", value: setting(\.itemSpacing), in: 0...12)
+                    }
+                    LabeledContent("Padding") {
+                        Stepper("\(store.settings.itemPadding)", value: setting(\.itemPadding), in: 0...12)
+                    }
                 }
                 Text("A spacing change takes effect after you log out and log in. Barkeep restores the old values when you turn this off.")
                     .font(.caption)
@@ -332,6 +338,48 @@ private struct AppearanceSettingsView: View {
                 coordinator.settingsDidChange()
             }
         )
+    }
+}
+
+private struct SettingsToggle: View {
+    let title: String
+    @Binding var isOn: Bool
+
+    init(_ title: String, isOn: Binding<Bool>) {
+        self.title = title
+        _isOn = isOn
+    }
+
+    var body: some View {
+        Button {
+            isOn.toggle()
+        } label: {
+            HStack(spacing: 12) {
+                Text(title)
+                    .foregroundStyle(.primary)
+                    .multilineTextAlignment(.leading)
+                Spacer(minLength: 16)
+                switchControl
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title)
+        .accessibilityValue(isOn ? "On" : "Off")
+        .accessibilityAddTraits(isOn ? .isSelected : [])
+    }
+
+    private var switchControl: some View {
+        ZStack(alignment: isOn ? .trailing : .leading) {
+            Capsule()
+                .fill(isOn ? Color.accentColor : Color.secondary.opacity(0.28))
+            Circle()
+                .fill(.white)
+                .shadow(color: .black.opacity(0.18), radius: 1, y: 1)
+                .padding(2)
+        }
+        .frame(width: 38, height: 22)
+        .animation(.easeOut(duration: 0.12), value: isOn)
     }
 }
 

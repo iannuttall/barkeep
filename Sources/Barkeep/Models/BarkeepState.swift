@@ -50,20 +50,10 @@ enum BarkeepIconStyle: String, Codable, CaseIterable, Identifiable, Sendable {
     }
 }
 
-enum BrowseStyle: String, Codable, CaseIterable, Identifiable, Sendable {
-    case compactPanel
-    case secondBar
-
-    var id: String { rawValue }
-    var title: String { self == .compactPanel ? "Compact panel" : "Second menu bar" }
-}
-
 struct BarkeepSettings: Codable, Equatable, Sendable {
     var launchAtLogin = false
     var showDockIcon = false
     var iconStyle: BarkeepIconStyle = .dot
-    var browseStyle: BrowseStyle = .compactPanel
-
     var autoRehide = true
     var rehideDelay: TimeInterval = 5
     var hideOnAppChange = false
