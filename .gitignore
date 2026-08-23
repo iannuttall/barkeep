@@ -1,0 +1,13 @@
+.DS_Store
+.build/
+build/
+DerivedData/
+Barkeep.xcodeproj/
+.xcode-build/
+dist/
+.signing-identity
+release.env
+*.p8
+*.p12
+*.xcuserstate
+xcuserdata/
