@@ -9,7 +9,7 @@
 Barkeep is a native menu bar manager for macOS. It keeps important items visible and puts
 everything else one click away.
 
-[Releases](https://github.com/iannuttall/barkeep/releases) ·
+[Download for macOS](https://github.com/iannuttall/barkeep/releases/latest) ·
 [Report a problem](https://github.com/iannuttall/barkeep/issues) · MIT licensed
 
 </div>
@@ -61,8 +61,8 @@ the macOS login item service.
 
 ## Install Barkeep
 
-Signed builds will appear on the [GitHub releases page](https://github.com/iannuttall/barkeep/releases).
-The first public build has not shipped yet.
+Download the latest DMG from the [GitHub releases page](https://github.com/iannuttall/barkeep/releases/latest),
+drag Barkeep to Applications, and open it.
 
 Barkeep supports macOS 14 or later. A local build also needs Xcode 16 or later and XcodeGen.
 
