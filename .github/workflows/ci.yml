@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project
+        run: xcodegen generate
+
+      - name: Run tests
+        run: xcodebuild -quiet -project Barkeep.xcodeproj -scheme Barkeep -configuration Debug -derivedDataPath .xcode-build CODE_SIGNING_ALLOWED=NO test
+
+      - name: Build app bundle
+        env:
+          SIGN_IDENTITY: "-"
+        run: ./scripts/build-app.sh
+
+      - name: Verify app and Sparkle
+        run: |
+          test -d dist/Barkeep.app/Contents/Frameworks/Sparkle.framework
+          codesign --verify --deep --strict --verbose=1 dist/Barkeep.app
+
+      - name: Verify launch
+        run: |
+          dist/Barkeep.app/Contents/MacOS/Barkeep & PID=$!
+          sleep 5
+          if kill -0 $PID 2>/dev/null; then
+            kill $PID
+          else
+            echo "::error::Barkeep exited during launch"
+            exit 1
+          fi
