@@ -3,17 +3,21 @@ import CoreGraphics
 import Foundation
 
 struct ScreenGeometry: Sendable {
-    let frame: CGRect
-    let safeAreaInsets: NSEdgeInsets
+    let coordinates: ScreenCoordinateSpace
+    let safeAreaTop: CGFloat
+
+    var frame: CGRect {
+        coordinates.quartzFrame
+    }
 
     var notchRect: CGRect? {
-        guard safeAreaInsets.top > 0 else { return nil }
+        guard safeAreaTop > 0 else { return nil }
         let width = min(220, frame.width * 0.22)
         return CGRect(
             x: frame.midX - width / 2,
-            y: frame.maxY - safeAreaInsets.top - 4,
+            y: frame.minY - 4,
             width: width,
-            height: safeAreaInsets.top + 8
+            height: safeAreaTop + 8
         )
     }
 }

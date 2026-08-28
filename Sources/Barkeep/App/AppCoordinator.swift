@@ -9,6 +9,7 @@ final class AppCoordinator: NSObject, ObservableObject {
     let updater = UpdateService.shared
 
     @Published private(set) var items: [MenuBarItemSnapshot] = []
+    @Published private(set) var itemZones: [String: VisibilityZone] = [:]
     @Published private(set) var isScanning = false
     @Published private(set) var movingItemID: String?
     @Published var message: String?
@@ -126,6 +127,8 @@ final class AppCoordinator: NSObject, ObservableObject {
         statusBar.revealAll()
         try? await Task.sleep(for: .milliseconds(140))
         let result = await scanner.scan(apps: runningApps())
+        let boundaries = statusBar.boundaryFrames()
+        itemZones = zones(for: result, boundaries: boundaries)
         items = result
         statusBar.setState(previousState)
         isScanning = false
@@ -133,10 +136,7 @@ final class AppCoordinator: NSObject, ObservableObject {
     }
 
     func currentZone(for item: MenuBarItemSnapshot) -> VisibilityZone {
-        if let saved = store.rules[item.id]?.zone {
-            return saved
-        }
-        return statusBar.boundaryFrames()?.zone(for: item.frame) ?? .alwaysVisible
+        itemZones[item.id] ?? store.rules[item.id]?.zone ?? .alwaysVisible
     }
 
     func items(in zone: VisibilityZone) -> [MenuBarItemSnapshot] {
@@ -153,10 +153,15 @@ final class AppCoordinator: NSObject, ObservableObject {
 
         movingItemID = item.id
         let previousState = statusBar.state
+        rehideTask?.cancel()
+        rehideTask = nil
         statusBar.revealAll()
         defer {
             statusBar.setState(previousState)
             movingItemID = nil
+            if previousState != .hidden {
+                scheduleRehide()
+            }
         }
 
         do {
@@ -169,22 +174,30 @@ final class AppCoordinator: NSObject, ObservableObject {
                 throw BarkeepError.boundariesUnavailable
             }
 
-            let screens = NSScreen.screens.map {
-                ScreenGeometry(frame: $0.frame, safeAreaInsets: $0.safeAreaInsets)
+            let screens = screenGeometries()
+            guard let quartzTarget = screens.lazy.compactMap({
+                $0.coordinates.quartzPoint(fromAppKit: target)
+            }).first,
+            let originalPointer = screens.lazy.compactMap({
+                $0.coordinates.quartzPoint(fromAppKit: NSEvent.mouseLocation)
+            }).first else {
+                throw BarkeepError.invalidGeometry
             }
             try await mover.move(
                 from: freshItem.frame,
-                to: target,
-                originalPointer: NSEvent.mouseLocation,
+                to: quartzTarget,
+                originalPointer: originalPointer,
                 screens: screens
             )
             try await Task.sleep(for: .milliseconds(260))
             let verifiedItems = await scanner.scan(apps: runningApps())
             guard let verified = verifiedItems.first(where: { matches($0, item) }),
-                  statusBar.boundaryFrames()?.zone(for: verified.frame) == zone else {
+                  let boundaries = statusBar.boundaryFrames(),
+                  boundaries.zone(for: verified.frame) == zone else {
                 throw BarkeepError.moveNotConfirmed
             }
             store.setRule(for: verified, zone: zone)
+            itemZones = zones(for: verifiedItems, boundaries: boundaries)
             items = verifiedItems
             message = "\(verified.displayName) is now \(zone.title.lowercased())."
         } catch {
@@ -211,6 +224,7 @@ final class AppCoordinator: NSObject, ObservableObject {
     }
 
     func requestReveal(all: Bool) {
+        guard movingItemID == nil else { return }
         if store.settings.requireAuthentication && statusBar.state == .hidden {
             authenticate { [weak self] in self?.reveal(all: all) }
         } else {
@@ -225,6 +239,7 @@ final class AppCoordinator: NSObject, ObservableObject {
     }
 
     func hide() {
+        guard movingItemID == nil else { return }
         rehideTask?.cancel()
         rehideTask = nil
         statusBar.hide()
@@ -263,6 +278,7 @@ final class AppCoordinator: NSObject, ObservableObject {
     }
 
     private func handlePrimaryClick(_ event: NSEvent) {
+        guard movingItemID == nil else { return }
         if event.modifierFlags.contains(.option) {
             if statusBar.state == .revealedAll { hide() } else { requestReveal(all: true) }
         } else if statusBar.state == .hidden {
@@ -273,6 +289,7 @@ final class AppCoordinator: NSObject, ObservableObject {
     }
 
     private func reveal(all: Bool) {
+        guard movingItemID == nil else { return }
         all ? statusBar.revealAll() : statusBar.revealHidden()
         scheduleRehide()
     }
@@ -314,6 +331,38 @@ final class AppCoordinator: NSObject, ObservableObject {
                 bundleIdentifier: $0.bundleIdentifier
             )
         }
+    }
+
+    private func screenGeometries() -> [ScreenGeometry] {
+        NSScreen.screens.compactMap { screen in
+            guard let number = screen.deviceDescription[
+                NSDeviceDescriptionKey("NSScreenNumber")
+            ] as? NSNumber else {
+                return nil
+            }
+            let displayID = CGDirectDisplayID(number.uint32Value)
+            return ScreenGeometry(
+                coordinates: ScreenCoordinateSpace(
+                    appKitFrame: screen.frame,
+                    quartzFrame: CGDisplayBounds(displayID)
+                ),
+                safeAreaTop: screen.safeAreaInsets.top
+            )
+        }
+    }
+
+    private func zones(
+        for snapshots: [MenuBarItemSnapshot],
+        boundaries: BoundaryFrames?
+    ) -> [String: VisibilityZone] {
+        var result: [String: VisibilityZone] = [:]
+        for item in snapshots {
+            result[item.id] = boundaries?.zone(for: item.frame)
+                ?? itemZones[item.id]
+                ?? store.rules[item.id]?.zone
+                ?? .alwaysVisible
+        }
+        return result
     }
 
     private func matches(_ lhs: MenuBarItemSnapshot, _ rhs: MenuBarItemSnapshot) -> Bool {

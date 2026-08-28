@@ -23,6 +23,68 @@ final class BarkeepTests: XCTestCase {
         )
     }
 
+    func testBoundaryTargetsAllowEmptySections() {
+        let boundaries = BoundaryFrames(
+            control: CGRect(x: 900, y: 876, width: 20, height: 24),
+            hidden: CGRect(x: 886, y: 876, width: 14, height: 24),
+            alwaysHidden: CGRect(x: 872, y: 876, width: 14, height: 24)
+        )
+
+        XCTAssertEqual(
+            boundaries.targetPoint(for: .alwaysVisible),
+            CGPoint(x: 900, y: 888)
+        )
+        XCTAssertEqual(
+            boundaries.targetPoint(for: .hidden),
+            CGPoint(x: 886, y: 888)
+        )
+        XCTAssertEqual(
+            boundaries.targetPoint(for: .alwaysHidden),
+            CGPoint(x: 854, y: 888)
+        )
+    }
+
+    func testBoundaryTargetsRejectInvalidOrdering() {
+        let boundaries = BoundaryFrames(
+            control: CGRect(x: 900, y: 876, width: 20, height: 24),
+            hidden: CGRect(x: 872, y: 876, width: 14, height: 24),
+            alwaysHidden: CGRect(x: 886, y: 876, width: 14, height: 24)
+        )
+
+        for zone in VisibilityZone.allCases {
+            XCTAssertNil(boundaries.targetPoint(for: zone))
+        }
+    }
+
+    func testAppKitPointsConvertToQuartzCoordinates() {
+        let coordinates = ScreenCoordinateSpace(
+            appKitFrame: CGRect(x: 0, y: 0, width: 1440, height: 900),
+            quartzFrame: CGRect(x: 0, y: 0, width: 1440, height: 900)
+        )
+
+        XCTAssertEqual(
+            coordinates.quartzPoint(fromAppKit: CGPoint(x: 100, y: 888)),
+            CGPoint(x: 100, y: 12)
+        )
+        XCTAssertEqual(
+            coordinates.quartzPoint(fromAppKit: CGPoint(x: 500, y: 300)),
+            CGPoint(x: 500, y: 600)
+        )
+    }
+
+    func testAppKitPointsConvertAcrossOffsetDisplays() {
+        let coordinates = ScreenCoordinateSpace(
+            appKitFrame: CGRect(x: 1440, y: 100, width: 1920, height: 1080),
+            quartzFrame: CGRect(x: 1440, y: -280, width: 1920, height: 1080)
+        )
+
+        XCTAssertEqual(
+            coordinates.quartzPoint(fromAppKit: CGPoint(x: 1540, y: 1160)),
+            CGPoint(x: 1540, y: -260)
+        )
+        XCTAssertNil(coordinates.quartzPoint(fromAppKit: CGPoint(x: 100, y: 100)))
+    }
+
     func testDefaultProductRules() {
         let settings = BarkeepSettings()
         XCTAssertEqual(settings.iconStyle, .dot)

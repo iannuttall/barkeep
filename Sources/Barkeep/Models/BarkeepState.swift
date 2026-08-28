@@ -132,6 +132,40 @@ struct BoundaryFrames: Sendable {
         }
         return .alwaysHidden
     }
+
+    func targetPoint(for zone: VisibilityZone) -> CGPoint? {
+        guard alwaysHidden.midX < hidden.midX,
+              hidden.midX < control.midX else {
+            return nil
+        }
+
+        let y = control.midY
+        switch zone {
+        case .alwaysVisible:
+            guard hidden.maxX <= control.minX else { return nil }
+            return CGPoint(x: (hidden.maxX + control.minX) / 2, y: y)
+        case .hidden:
+            guard alwaysHidden.maxX <= hidden.minX else { return nil }
+            return CGPoint(x: (alwaysHidden.maxX + hidden.minX) / 2, y: y)
+        case .alwaysHidden:
+            return CGPoint(x: alwaysHidden.minX - 18, y: y)
+        }
+    }
+}
+
+struct ScreenCoordinateSpace: Sendable {
+    let appKitFrame: CGRect
+    let quartzFrame: CGRect
+
+    func quartzPoint(fromAppKit point: CGPoint) -> CGPoint? {
+        guard appKitFrame.insetBy(dx: -2, dy: -2).contains(point) else {
+            return nil
+        }
+        return CGPoint(
+            x: quartzFrame.minX + point.x - appKitFrame.minX,
+            y: quartzFrame.minY + appKitFrame.maxY - point.y
+        )
+    }
 }
 
 enum BarkeepError: LocalizedError {
