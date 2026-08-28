@@ -85,6 +85,25 @@ final class BarkeepTests: XCTestCase {
         XCTAssertNil(coordinates.quartzPoint(fromAppKit: CGPoint(x: 100, y: 100)))
     }
 
+    func testLongDragPathDetectsNarrowNotch() {
+        let notch = CGRect(x: 49, y: -1, width: 2, height: 2)
+
+        XCTAssertTrue(
+            MenuBarGeometry.line(
+                from: CGPoint(x: 0, y: 0),
+                to: CGPoint(x: 2_400, y: 0),
+                intersects: notch
+            )
+        )
+        XCTAssertFalse(
+            MenuBarGeometry.line(
+                from: CGPoint(x: 0, y: 2),
+                to: CGPoint(x: 2_400, y: 2),
+                intersects: notch
+            )
+        )
+    }
+
     func testDefaultProductRules() {
         let settings = BarkeepSettings()
         XCTAssertEqual(settings.iconStyle, .dot)
