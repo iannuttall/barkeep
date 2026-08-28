@@ -125,22 +125,7 @@ final class StatusBarEngine: NSObject {
     }
 
     func targetPoint(for zone: VisibilityZone) -> CGPoint? {
-        guard let frames = boundaryFrames() else { return nil }
-        let y = frames.control.midY
-        switch zone {
-        case .alwaysVisible:
-            let left = frames.hidden.maxX + 8
-            let right = frames.control.minX - 8
-            guard right > left else { return nil }
-            return CGPoint(x: (left + right) / 2, y: y)
-        case .hidden:
-            let left = frames.alwaysHidden.maxX + 8
-            let right = frames.hidden.minX - 8
-            guard right > left else { return nil }
-            return CGPoint(x: (left + right) / 2, y: y)
-        case .alwaysHidden:
-            return CGPoint(x: frames.alwaysHidden.minX - 18, y: y)
-        }
+        boundaryFrames()?.targetPoint(for: zone)
     }
 
     private func configure(_ item: NSStatusItem, name: String, label: String) {
