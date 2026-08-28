@@ -115,7 +115,7 @@ final class AppCoordinator: NSObject, ObservableObject {
     }
 
     func refreshItems(promptForPermission: Bool) async {
-        guard !isScanning else { return }
+        guard !isScanning, movingItemID == nil else { return }
         guard AccessibilityPermission.isGranted else {
             if promptForPermission { AccessibilityPermission.request() }
             message = BarkeepError.accessibilityRequired.localizedDescription
@@ -144,7 +144,7 @@ final class AppCoordinator: NSObject, ObservableObject {
     }
 
     func moveItem(_ item: MenuBarItemSnapshot, to zone: VisibilityZone) async {
-        guard movingItemID == nil else { return }
+        guard movingItemID == nil, !isScanning else { return }
         guard AccessibilityPermission.isGranted else {
             AccessibilityPermission.request()
             message = BarkeepError.accessibilityRequired.localizedDescription
@@ -196,9 +196,9 @@ final class AppCoordinator: NSObject, ObservableObject {
                   boundaries.zone(for: verified.frame) == zone else {
                 throw BarkeepError.moveNotConfirmed
             }
-            store.setRule(for: verified, zone: zone)
             itemZones = zones(for: verifiedItems, boundaries: boundaries)
             items = verifiedItems
+            store.setRule(for: verified, zone: zone)
             message = "\(verified.displayName) is now \(zone.title.lowercased())."
         } catch {
             message = error.localizedDescription

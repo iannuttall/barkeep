@@ -55,6 +55,7 @@ private struct ItemsSettingsView: View {
                 Button("Refresh") {
                     Task { await coordinator.refreshItems(promptForPermission: true) }
                 }
+                .disabled(coordinator.isScanning || coordinator.movingItemID != nil)
             }
 
             if !AccessibilityPermission.isGranted {
@@ -124,7 +125,9 @@ private struct ZoneColumn: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(.background.secondary, in: RoundedRectangle(cornerRadius: 10))
         .dropDestination(for: String.self) { identifiers, _ in
-            guard let id = identifiers.first,
+            guard !coordinator.isScanning,
+                  coordinator.movingItemID == nil,
+                  let id = identifiers.first,
                   let item = coordinator.items.first(where: { $0.id == id }) else {
                 return false
             }
@@ -172,6 +175,7 @@ private struct ItemRow: View {
         .background(.background, in: RoundedRectangle(cornerRadius: 7))
         .contentShape(Rectangle())
         .draggable(item.id)
+        .disabled(coordinator.isScanning || coordinator.movingItemID != nil)
     }
 }
 
