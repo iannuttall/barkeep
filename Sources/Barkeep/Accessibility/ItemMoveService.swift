@@ -67,29 +67,11 @@ final class ItemMoveService: @unchecked Sendable {
 
         let start = CGPoint(x: sourceFrame.midX, y: sourceFrame.midY)
         for screen in screens {
-            if let notch = screen.notchRect, line(from: start, to: target, intersects: notch) {
+            if let notch = screen.notchRect,
+               MenuBarGeometry.line(from: start, to: target, intersects: notch) {
                 throw BarkeepError.notchBlocksMove
             }
         }
-    }
-
-    private static func line(from start: CGPoint, to end: CGPoint, intersects rect: CGRect) -> Bool {
-        guard max(start.x, end.x) >= rect.minX,
-              min(start.x, end.x) <= rect.maxX,
-              max(start.y, end.y) >= rect.minY,
-              min(start.y, end.y) <= rect.maxY else {
-            return false
-        }
-        let steps = 24
-        for step in 0...steps {
-            let amount = CGFloat(step) / CGFloat(steps)
-            let point = CGPoint(
-                x: start.x + (end.x - start.x) * amount,
-                y: start.y + (end.y - start.y) * amount
-            )
-            if rect.contains(point) { return true }
-        }
-        return false
     }
 
     private static func postCommandDrag(

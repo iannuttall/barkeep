@@ -168,6 +168,38 @@ struct ScreenCoordinateSpace: Sendable {
     }
 }
 
+enum MenuBarGeometry {
+    static func line(from start: CGPoint, to end: CGPoint, intersects rect: CGRect) -> Bool {
+        guard !rect.isNull, !rect.isEmpty else { return false }
+
+        let deltaX = end.x - start.x
+        let deltaY = end.y - start.y
+        var lowerBound: CGFloat = 0
+        var upperBound: CGFloat = 1
+
+        func clips(_ direction: CGFloat, _ distance: CGFloat) -> Bool {
+            if abs(direction) < CGFloat.ulpOfOne {
+                return distance >= 0
+            }
+
+            let ratio = distance / direction
+            if direction < 0 {
+                guard ratio <= upperBound else { return false }
+                lowerBound = max(lowerBound, ratio)
+            } else {
+                guard ratio >= lowerBound else { return false }
+                upperBound = min(upperBound, ratio)
+            }
+            return true
+        }
+
+        return clips(-deltaX, start.x - rect.minX)
+            && clips(deltaX, rect.maxX - start.x)
+            && clips(-deltaY, start.y - rect.minY)
+            && clips(deltaY, rect.maxY - start.y)
+    }
+}
+
 enum BarkeepError: LocalizedError {
     case accessibilityRequired
     case itemNotFound
