@@ -23,7 +23,20 @@ final class BarkeepTests: XCTestCase {
         )
     }
 
-    func testBoundaryTargetsAllowEmptySections() {
+    func testSystemItemsRightOfControlAreAlwaysVisible() {
+        let boundaries = BoundaryFrames(
+            control: CGRect(x: 900, y: 876, width: 20, height: 24),
+            hidden: CGRect(x: 950, y: 876, width: 14, height: 24),
+            alwaysHidden: CGRect(x: 400, y: 876, width: 14, height: 24)
+        )
+        let systemItem = CGRect(x: 920, y: 876, width: 20, height: 24)
+
+        XCTAssertGreaterThan(systemItem.midX, boundaries.control.midX)
+        XCTAssertLessThan(systemItem.midX, boundaries.hidden.midX)
+        XCTAssertEqual(boundaries.zone(for: systemItem), .alwaysVisible)
+    }
+
+    func testBoundaryTargetsAllowEmptySections() throws {
         let boundaries = BoundaryFrames(
             control: CGRect(x: 900, y: 876, width: 20, height: 24),
             hidden: CGRect(x: 886, y: 876, width: 14, height: 24),
@@ -32,16 +45,34 @@ final class BarkeepTests: XCTestCase {
 
         XCTAssertEqual(
             boundaries.targetPoint(for: .alwaysVisible),
-            CGPoint(x: 900, y: 888)
+            CGPoint(x: 901, y: 888)
         )
         XCTAssertEqual(
             boundaries.targetPoint(for: .hidden),
-            CGPoint(x: 886, y: 888)
+            CGPoint(x: 887, y: 888)
         )
         XCTAssertEqual(
             boundaries.targetPoint(for: .alwaysHidden),
             CGPoint(x: 854, y: 888)
         )
+
+        let visibleTarget = try XCTUnwrap(boundaries.targetPoint(for: .alwaysVisible))
+        let insertedItem = CGRect(x: visibleTarget.x - 11, y: 876, width: 22, height: 24)
+        XCTAssertEqual(boundaries.zone(for: insertedItem), .alwaysVisible)
+    }
+
+    func testTargetMovesItemOutOfAlwaysHidden() throws {
+        let boundaries = BoundaryFrames(
+            control: CGRect(x: 900, y: 876, width: 20, height: 24),
+            hidden: CGRect(x: 700, y: 876, width: 14, height: 24),
+            alwaysHidden: CGRect(x: 400, y: 876, width: 14, height: 24)
+        )
+        let initialFrame = CGRect(x: 250, y: 876, width: 22, height: 24)
+        let hiddenTarget = try XCTUnwrap(boundaries.targetPoint(for: .hidden))
+        let movedFrame = CGRect(x: hiddenTarget.x - 11, y: 876, width: 22, height: 24)
+
+        XCTAssertEqual(boundaries.zone(for: initialFrame), .alwaysHidden)
+        XCTAssertEqual(boundaries.zone(for: movedFrame), .hidden)
     }
 
     func testBoundaryTargetsRejectInvalidOrdering() {
