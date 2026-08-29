@@ -3,6 +3,12 @@ import Combine
 import LocalAuthentication
 import UniformTypeIdentifiers
 
+private struct MoveConfirmation {
+    let items: [MenuBarItemSnapshot]
+    let item: MenuBarItemSnapshot
+    let boundaries: BoundaryFrames
+}
+
 @MainActor
 final class AppCoordinator: NSObject, ObservableObject {
     let store: StateStore
@@ -165,6 +171,12 @@ final class AppCoordinator: NSObject, ObservableObject {
         }
 
         do {
+            let screens = screenGeometries()
+            guard let originalPointer = screens.lazy.compactMap({
+                $0.coordinates.quartzPoint(fromAppKit: NSEvent.mouseLocation)
+            }).first else {
+                throw BarkeepError.invalidGeometry
+            }
             try await Task.sleep(for: .milliseconds(160))
             let freshItems = await scanner.scan(apps: runningApps())
             guard let freshItem = freshItems.first(where: { matches($0, item) }) else {
@@ -173,33 +185,31 @@ final class AppCoordinator: NSObject, ObservableObject {
             guard let target = statusBar.targetPoint(for: zone) else {
                 throw BarkeepError.boundariesUnavailable
             }
-
-            let screens = screenGeometries()
             guard let quartzTarget = screens.lazy.compactMap({
                 $0.coordinates.quartzPoint(fromAppKit: target)
-            }).first,
-            let originalPointer = screens.lazy.compactMap({
-                $0.coordinates.quartzPoint(fromAppKit: NSEvent.mouseLocation)
             }).first else {
                 throw BarkeepError.invalidGeometry
             }
+
+            if let boundaries = statusBar.boundaryFrames(),
+               boundaries.zone(for: freshItem.frame) == zone {
+                applyConfirmedMove(
+                    MoveConfirmation(items: freshItems, item: freshItem, boundaries: boundaries),
+                    to: zone
+                )
+                return
+            }
+
             try await mover.move(
                 from: freshItem.frame,
                 to: quartzTarget,
                 originalPointer: originalPointer,
                 screens: screens
             )
-            try await Task.sleep(for: .milliseconds(260))
-            let verifiedItems = await scanner.scan(apps: runningApps())
-            guard let verified = verifiedItems.first(where: { matches($0, item) }),
-                  let boundaries = statusBar.boundaryFrames(),
-                  boundaries.zone(for: verified.frame) == zone else {
+            guard let confirmation = await confirmMove(item, to: zone) else {
                 throw BarkeepError.moveNotConfirmed
             }
-            itemZones = zones(for: verifiedItems, boundaries: boundaries)
-            items = verifiedItems
-            store.setRule(for: verified, zone: zone)
-            message = "\(verified.displayName) is now \(zone.title.lowercased())."
+            applyConfirmedMove(confirmation, to: zone)
         } catch {
             message = error.localizedDescription
         }
@@ -362,6 +372,35 @@ final class AppCoordinator: NSObject, ObservableObject {
                 ?? .alwaysVisible
         }
         return result
+    }
+
+    private func confirmMove(
+        _ requestedItem: MenuBarItemSnapshot,
+        to zone: VisibilityZone
+    ) async -> MoveConfirmation? {
+        for _ in 0..<10 {
+            try? await Task.sleep(for: .milliseconds(100))
+            let scannedItems = await scanner.scan(apps: runningApps())
+            guard let verifiedItem = scannedItems.first(where: { matches($0, requestedItem) }),
+                  let boundaries = statusBar.boundaryFrames() else {
+                continue
+            }
+            if boundaries.zone(for: verifiedItem.frame) == zone {
+                return MoveConfirmation(
+                    items: scannedItems,
+                    item: verifiedItem,
+                    boundaries: boundaries
+                )
+            }
+        }
+        return nil
+    }
+
+    private func applyConfirmedMove(_ confirmation: MoveConfirmation, to zone: VisibilityZone) {
+        itemZones = zones(for: confirmation.items, boundaries: confirmation.boundaries)
+        items = confirmation.items
+        store.setRule(for: confirmation.item, zone: zone)
+        message = "\(confirmation.item.displayName) is now \(zone.title.lowercased())."
     }
 
     private func matches(_ lhs: MenuBarItemSnapshot, _ rhs: MenuBarItemSnapshot) -> Bool {

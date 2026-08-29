@@ -30,7 +30,8 @@ final class ItemMoveService: @unchecked Sendable {
                     try Self.postCommandDrag(
                         from: CGPoint(x: sourceFrame.midX, y: sourceFrame.midY),
                         to: target,
-                        restore: originalPointer
+                        restore: originalPointer,
+                        eventTap: .cgSessionEventTap
                     )
                     continuation.resume()
                 } catch {
@@ -61,16 +62,16 @@ final class ItemMoveService: @unchecked Sendable {
     private static func postCommandDrag(
         from start: CGPoint,
         to end: CGPoint,
-        restore originalPointer: CGPoint
+        restore originalPointer: CGPoint,
+        eventTap: CGEventTapLocation
     ) throws {
-        let source = CGEventSource(stateID: .hidSystemState)
         guard let moveToStart = CGEvent(
-            mouseEventSource: source,
+            mouseEventSource: nil,
             mouseType: .mouseMoved,
             mouseCursorPosition: start,
             mouseButton: .left
         ), let down = CGEvent(
-            mouseEventSource: source,
+            mouseEventSource: nil,
             mouseType: .leftMouseDown,
             mouseCursorPosition: start,
             mouseButton: .left
@@ -78,20 +79,25 @@ final class ItemMoveService: @unchecked Sendable {
             throw BarkeepError.invalidGeometry
         }
 
-        moveToStart.post(tap: .cghidEventTap)
-        usleep(40_000)
-        down.flags = .maskCommand
-        down.post(tap: .cghidEventTap)
-        usleep(60_000)
+        CGDisplayHideCursor(CGMainDisplayID())
+        defer { CGDisplayShowCursor(CGMainDisplayID()) }
 
-        for step in 1...12 {
-            let amount = CGFloat(step) / 12
+        moveToStart.post(tap: eventTap)
+        usleep(60_000)
+        down.flags = .maskCommand
+        down.post(tap: eventTap)
+        usleep(80_000)
+
+        let distance = hypot(end.x - start.x, end.y - start.y)
+        let steps = min(max(Int(ceil(distance / 22)), 10), 14)
+        for step in 1...steps {
+            let amount = CGFloat(step) / CGFloat(steps)
             let point = CGPoint(
                 x: start.x + (end.x - start.x) * amount,
                 y: start.y + (end.y - start.y) * amount
             )
             guard let drag = CGEvent(
-                mouseEventSource: source,
+                mouseEventSource: nil,
                 mouseType: .leftMouseDragged,
                 mouseCursorPosition: point,
                 mouseButton: .left
@@ -99,17 +105,17 @@ final class ItemMoveService: @unchecked Sendable {
                 throw BarkeepError.invalidGeometry
             }
             drag.flags = .maskCommand
-            drag.post(tap: .cghidEventTap)
-            usleep(16_000)
+            drag.post(tap: eventTap)
+            usleep(15_000)
         }
 
         guard let up = CGEvent(
-            mouseEventSource: source,
+            mouseEventSource: nil,
             mouseType: .leftMouseUp,
             mouseCursorPosition: end,
             mouseButton: .left
         ), let restore = CGEvent(
-            mouseEventSource: source,
+            mouseEventSource: nil,
             mouseType: .mouseMoved,
             mouseCursorPosition: originalPointer,
             mouseButton: .left
@@ -117,8 +123,8 @@ final class ItemMoveService: @unchecked Sendable {
             throw BarkeepError.invalidGeometry
         }
         up.flags = .maskCommand
-        up.post(tap: .cghidEventTap)
-        usleep(50_000)
-        restore.post(tap: .cghidEventTap)
+        up.post(tap: eventTap)
+        usleep(140_000)
+        restore.post(tap: eventTap)
     }
 }

@@ -124,7 +124,7 @@ struct BoundaryFrames: Sendable {
     let alwaysHidden: CGRect
 
     func zone(for itemFrame: CGRect) -> VisibilityZone {
-        if itemFrame.midX > hidden.midX {
+        if itemFrame.midX > control.midX || itemFrame.midX > hidden.midX {
             return .alwaysVisible
         }
         if itemFrame.midX > alwaysHidden.midX {
@@ -143,10 +143,16 @@ struct BoundaryFrames: Sendable {
         switch zone {
         case .alwaysVisible:
             guard hidden.maxX <= control.minX else { return nil }
-            return CGPoint(x: (hidden.maxX + control.minX) / 2, y: y)
+            let x = hidden.maxX == control.minX
+                ? hidden.maxX + 1
+                : (hidden.maxX + control.minX) / 2
+            return CGPoint(x: x, y: y)
         case .hidden:
             guard alwaysHidden.maxX <= hidden.minX else { return nil }
-            return CGPoint(x: (alwaysHidden.maxX + hidden.minX) / 2, y: y)
+            let x = alwaysHidden.maxX == hidden.minX
+                ? alwaysHidden.maxX + 1
+                : (alwaysHidden.maxX + hidden.minX) / 2
+            return CGPoint(x: x, y: y)
         case .alwaysHidden:
             return CGPoint(x: alwaysHidden.minX - 18, y: y)
         }
