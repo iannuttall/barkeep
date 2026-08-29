@@ -172,6 +172,21 @@ struct ScreenCoordinateSpace: Sendable {
             y: quartzFrame.minY + appKitFrame.maxY - point.y
         )
     }
+
+    func quartzPoint(fromAccessibility point: CGPoint, menuBarAnchorY: CGFloat) -> CGPoint? {
+        var candidates: [CGPoint] = []
+        if quartzFrame.insetBy(dx: -2, dy: -2).contains(point) {
+            candidates.append(point)
+        }
+        if let converted = quartzPoint(fromAppKit: point),
+           quartzFrame.insetBy(dx: -2, dy: -2).contains(converted),
+           !candidates.contains(converted) {
+            candidates.append(converted)
+        }
+        return candidates.min {
+            abs($0.y - menuBarAnchorY) < abs($1.y - menuBarAnchorY)
+        }
+    }
 }
 
 enum BarkeepError: LocalizedError {

@@ -190,6 +190,23 @@ final class AppCoordinator: NSObject, ObservableObject {
             }).first else {
                 throw BarkeepError.invalidGeometry
             }
+            let rawSourcePoint = CGPoint(x: freshItem.frame.midX, y: freshItem.frame.midY)
+            guard let quartzSource = screens.compactMap({
+                $0.coordinates.quartzPoint(
+                    fromAccessibility: rawSourcePoint,
+                    menuBarAnchorY: quartzTarget.y
+                )
+            }).min(by: {
+                abs($0.y - quartzTarget.y) < abs($1.y - quartzTarget.y)
+            }) else {
+                throw BarkeepError.invalidGeometry
+            }
+            let quartzSourceFrame = CGRect(
+                x: quartzSource.x - freshItem.frame.width / 2,
+                y: quartzSource.y - freshItem.frame.height / 2,
+                width: freshItem.frame.width,
+                height: freshItem.frame.height
+            )
 
             if let boundaries = statusBar.boundaryFrames(),
                boundaries.zone(for: freshItem.frame) == zone {
@@ -201,7 +218,7 @@ final class AppCoordinator: NSObject, ObservableObject {
             }
 
             try await mover.move(
-                from: freshItem.frame,
+                from: quartzSourceFrame,
                 to: quartzTarget,
                 originalPointer: originalPointer,
                 screens: screens
