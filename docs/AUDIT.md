@@ -91,15 +91,17 @@ Barkeep will not make an automatic synthetic item move during wake, launch, or
 idle time. It can detect a problem and offer one Repair action. Only a direct
 user action can post a Command-drag event.
 
-### 3. The notch is a real limit
+### 3. macOS owns notch overflow
 
 On macOS 26, a synthetic drag can fail when its path crosses the camera notch.
 Screen Recording can expose more window data, but it adds a broad permission
 and still does not make all moves safe.
 
-Barkeep will start with Accessibility only. It will explain a blocked notch move
-and offer search, a second bar, or tighter spacing. It will not claim success
-until a live scan confirms the new section.
+Barkeep starts with Accessibility only. It does not preemptively reject a Settings
+move because a straight cursor path crosses an estimated notch rectangle: macOS
+already owns menu bar overflow, and that check rejects valid moves on real notched
+MacBooks. Barkeep attempts the move and does not claim success until a live scan
+confirms the new section.
 
 ### 4. macOS 27 is not a safe target yet
 

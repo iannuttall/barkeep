@@ -4,21 +4,9 @@ import Foundation
 
 struct ScreenGeometry: Sendable {
     let coordinates: ScreenCoordinateSpace
-    let safeAreaTop: CGFloat
 
     var frame: CGRect {
         coordinates.quartzFrame
-    }
-
-    var notchRect: CGRect? {
-        guard safeAreaTop > 0 else { return nil }
-        let width = min(220, frame.width * 0.22)
-        return CGRect(
-            x: frame.midX - width / 2,
-            y: frame.minY - 4,
-            width: width,
-            height: safeAreaTop + 8
-        )
     }
 }
 
@@ -34,7 +22,11 @@ final class ItemMoveService: @unchecked Sendable {
         try await withCheckedThrowingContinuation { continuation in
             queue.async {
                 do {
-                    try Self.validate(sourceFrame: sourceFrame, target: target, screens: screens)
+                    try Self.validate(
+                        sourceFrame: sourceFrame,
+                        target: target,
+                        screens: screens
+                    )
                     try Self.postCommandDrag(
                         from: CGPoint(x: sourceFrame.midX, y: sourceFrame.midY),
                         to: target,
@@ -48,7 +40,7 @@ final class ItemMoveService: @unchecked Sendable {
         }
     }
 
-    private static func validate(
+    static func validate(
         sourceFrame: CGRect,
         target: CGPoint,
         screens: [ScreenGeometry]
@@ -63,14 +55,6 @@ final class ItemMoveService: @unchecked Sendable {
               }),
               screens.contains(where: { $0.frame.insetBy(dx: -2, dy: -2).contains(target) }) else {
             throw BarkeepError.invalidGeometry
-        }
-
-        let start = CGPoint(x: sourceFrame.midX, y: sourceFrame.midY)
-        for screen in screens {
-            if let notch = screen.notchRect,
-               MenuBarGeometry.line(from: start, to: target, intersects: notch) {
-                throw BarkeepError.notchBlocksMove
-            }
         }
     }
 

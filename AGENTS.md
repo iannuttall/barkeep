@@ -78,7 +78,7 @@ Keep the item move sequence in this order.
 2. Scan the live menu bar.
 3. Match the selected item.
 4. Read current boundary frames.
-5. Validate both endpoints and the notch path.
+5. Validate both endpoints and their current screens.
 6. Post one Command-drag.
 7. Return the pointer to its earlier position.
 8. Scan again.
@@ -87,6 +87,9 @@ Keep the item move sequence in this order.
 
 There can be only one active move. A failure must keep the earlier saved rule and show a useful
 message. Do not add background repair or pointer movement.
+
+macOS owns menu bar overflow around a camera notch. Settings moves must not be rejected only because
+their cursor path crosses the center of a notched display; the second scan decides whether they land.
 
 The permission helper opens the exact Accessibility page, follows the System Settings window, and
 offers the signed app as a file drag source. Keep its pasteboard payload narrow. Do not add a broad
