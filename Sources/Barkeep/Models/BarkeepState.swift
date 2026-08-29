@@ -168,44 +168,11 @@ struct ScreenCoordinateSpace: Sendable {
     }
 }
 
-enum MenuBarGeometry {
-    static func line(from start: CGPoint, to end: CGPoint, intersects rect: CGRect) -> Bool {
-        guard !rect.isNull, !rect.isEmpty else { return false }
-
-        let deltaX = end.x - start.x
-        let deltaY = end.y - start.y
-        var lowerBound: CGFloat = 0
-        var upperBound: CGFloat = 1
-
-        func clips(_ direction: CGFloat, _ distance: CGFloat) -> Bool {
-            if abs(direction) < CGFloat.ulpOfOne {
-                return distance >= 0
-            }
-
-            let ratio = distance / direction
-            if direction < 0 {
-                guard ratio <= upperBound else { return false }
-                lowerBound = max(lowerBound, ratio)
-            } else {
-                guard ratio >= lowerBound else { return false }
-                upperBound = min(upperBound, ratio)
-            }
-            return true
-        }
-
-        return clips(-deltaX, start.x - rect.minX)
-            && clips(deltaX, rect.maxX - start.x)
-            && clips(-deltaY, start.y - rect.minY)
-            && clips(deltaY, rect.maxY - start.y)
-    }
-}
-
 enum BarkeepError: LocalizedError {
     case accessibilityRequired
     case itemNotFound
     case boundariesUnavailable
     case invalidGeometry
-    case notchBlocksMove
     case moveNotConfirmed
     case authenticationFailed
 
@@ -215,7 +182,6 @@ enum BarkeepError: LocalizedError {
         case .itemNotFound: "Barkeep could not find this item in the current menu bar."
         case .boundariesUnavailable: "Barkeep could not find its section boundaries."
         case .invalidGeometry: "The current menu bar layout is not safe for this move."
-        case .notchBlocksMove: "The camera notch blocks this move. Use Search or tighter item spacing."
         case .moveNotConfirmed: "macOS did not complete the move. Barkeep kept the old section."
         case .authenticationFailed: "Barkeep did not reveal the hidden items."
         }

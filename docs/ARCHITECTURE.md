@@ -59,7 +59,7 @@ authentication and the auto-hide timer one shared path.
 3. The scanner reads the live menu bar.
 4. The coordinator matches the selected item to the fresh result.
 5. The status bar engine gives the target point for the requested section.
-6. `ItemMoveService` validates the source frame, target point, screen, and notch path.
+6. `ItemMoveService` validates the source frame, target point, and screen.
 7. The service posts one Command-drag and returns the pointer to its old position.
 8. The scanner reads the live menu bar again.
 9. The store saves the rule only when the boundary frames confirm the new section.
@@ -74,8 +74,9 @@ A menu bar item frame is valid only for the scan that returned it. Saved state c
 coordinates and no Accessibility objects.
 
 The move service rejects empty or very large source frames. Both endpoints must be on a current
-screen. The straight move path cannot cross the estimated camera notch. These checks reduce the
-risk of posting input at the wrong place when the display layout changes.
+screen. macOS owns menu bar overflow around a camera notch, so Barkeep does not reject a move just
+because the cursor path crosses the center of a notched display. The second scan remains the source
+of truth for whether the item landed.
 
 ## Background work stops when it is not needed
 

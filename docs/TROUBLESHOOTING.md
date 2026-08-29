@@ -22,8 +22,9 @@ Do not move the app after macOS grants access.
 
 ## An item does not move to its new section
 
-Barkeep rejects a move when the source frame, target point, screen, or camera notch path is not
-safe. It also rejects a move when the second Accessibility scan cannot confirm the result.
+Barkeep rejects a move when the source frame, target point, or screen is not safe. macOS decides
+how menu bar overflow fits around a camera notch. Barkeep saves the new section only when a second
+Accessibility scan confirms that macOS completed the move.
 
 Use these checks in order.
 
@@ -31,7 +32,7 @@ Use these checks in order.
 2. Select **Refresh** in the Items settings.
 3. Try the section menu on the item row instead of drag and drop.
 4. Turn on tighter item spacing when the menu bar has no safe space.
-5. Move the item by hand with Command-drag when a MacBook notch blocks the route.
+5. Move the item by hand with Command-drag when macOS does not complete the move.
 
 Barkeep keeps the old saved section after a failed move.
 

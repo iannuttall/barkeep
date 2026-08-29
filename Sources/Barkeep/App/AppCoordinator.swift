@@ -345,8 +345,7 @@ final class AppCoordinator: NSObject, ObservableObject {
                 coordinates: ScreenCoordinateSpace(
                     appKitFrame: screen.frame,
                     quartzFrame: CGDisplayBounds(displayID)
-                ),
-                safeAreaTop: screen.safeAreaInsets.top
+                )
             )
         }
     }

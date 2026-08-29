@@ -85,23 +85,68 @@ final class BarkeepTests: XCTestCase {
         XCTAssertNil(coordinates.quartzPoint(fromAppKit: CGPoint(x: 100, y: 100)))
     }
 
-    func testLongDragPathDetectsNarrowNotch() {
-        let notch = CGRect(x: 49, y: -1, width: 2, height: 2)
+    func testNoNotchDisplayAllowsSettingsMove() {
+        let screen = ScreenGeometry(
+            coordinates: ScreenCoordinateSpace(
+                appKitFrame: CGRect(x: 0, y: 0, width: 1_920, height: 1_080),
+                quartzFrame: CGRect(x: 0, y: 0, width: 1_920, height: 1_080)
+            )
+        )
 
-        XCTAssertTrue(
-            MenuBarGeometry.line(
-                from: CGPoint(x: 0, y: 0),
-                to: CGPoint(x: 2_400, y: 0),
-                intersects: notch
+        XCTAssertNoThrow(
+            try ItemMoveService.validate(
+                sourceFrame: CGRect(x: 1_500, y: 0, width: 22, height: 24),
+                target: CGPoint(x: 1_200, y: 12),
+                screens: [screen]
             )
         )
-        XCTAssertFalse(
-            MenuBarGeometry.line(
-                from: CGPoint(x: 0, y: 2),
-                to: CGPoint(x: 2_400, y: 2),
-                intersects: notch
+    }
+
+    func testNotchedDisplayAllowsSettingsMoveAcrossCenter() {
+        let screen = ScreenGeometry(
+            coordinates: ScreenCoordinateSpace(
+                appKitFrame: CGRect(x: 0, y: 0, width: 1_512, height: 982),
+                quartzFrame: CGRect(x: 0, y: 0, width: 1_512, height: 982)
             )
         )
+        let source = CGRect(x: 1_300, y: 0, width: 22, height: 24)
+        let target = CGPoint(x: 200, y: 12)
+        let cameraHousing = CGRect(x: 646, y: 0, width: 220, height: 40)
+
+        // macOS owns overflow around the housing. Barkeep validates the landing
+        // points and relies on the confirmation scan instead of blocking this path.
+        XCTAssertGreaterThan(source.midX, cameraHousing.maxX)
+        XCTAssertLessThan(target.x, cameraHousing.minX)
+        XCTAssertTrue(cameraHousing.contains(CGPoint(x: cameraHousing.midX, y: target.y)))
+        XCTAssertNoThrow(
+            try ItemMoveService.validate(
+                sourceFrame: source,
+                target: target,
+                screens: [screen]
+            )
+        )
+    }
+
+    func testSettingsMoveRejectsOffscreenTarget() {
+        let screen = ScreenGeometry(
+            coordinates: ScreenCoordinateSpace(
+                appKitFrame: CGRect(x: 0, y: 0, width: 1_512, height: 982),
+                quartzFrame: CGRect(x: 0, y: 0, width: 1_512, height: 982)
+            )
+        )
+
+        XCTAssertThrowsError(
+            try ItemMoveService.validate(
+                sourceFrame: CGRect(x: 1_300, y: 0, width: 22, height: 24),
+                target: CGPoint(x: -100, y: 12),
+                screens: [screen]
+            )
+        ) { error in
+            XCTAssertEqual(
+                error.localizedDescription,
+                BarkeepError.invalidGeometry.localizedDescription
+            )
+        }
     }
 
     func testDefaultProductRules() {
