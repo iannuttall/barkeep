@@ -103,6 +103,28 @@ final class BarkeepTests: XCTestCase {
         )
     }
 
+    func testAccessibilitySourceUsesMenuBarCoordinateCandidate() {
+        let coordinates = ScreenCoordinateSpace(
+            appKitFrame: CGRect(x: 0, y: 0, width: 1_440, height: 900),
+            quartzFrame: CGRect(x: 0, y: 0, width: 1_440, height: 900)
+        )
+
+        XCTAssertEqual(
+            coordinates.quartzPoint(
+                fromAccessibility: CGPoint(x: 100, y: 12),
+                menuBarAnchorY: 12
+            ),
+            CGPoint(x: 100, y: 12)
+        )
+        XCTAssertEqual(
+            coordinates.quartzPoint(
+                fromAccessibility: CGPoint(x: 100, y: 888),
+                menuBarAnchorY: 12
+            ),
+            CGPoint(x: 100, y: 12)
+        )
+    }
+
     func testAppKitPointsConvertAcrossOffsetDisplays() {
         let coordinates = ScreenCoordinateSpace(
             appKitFrame: CGRect(x: 1440, y: 100, width: 1920, height: 1080),
