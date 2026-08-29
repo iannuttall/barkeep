@@ -1,153 +1,140 @@
-# Ice and SaneBar audit
+# Barkeep clean-room and safety audit
 
 Audit date: 2026-08-23
 
-This audit used these fixed source versions:
+## Scope and provenance
 
-- Ice: `11edd39115f3f43a83ae114b5348df6a0e1741cf`
-- SaneBar: `478e47908d18bbda7906404e2bd9c615472d92c1`
-- Anarlog permission flow: `a0ad6867702220205adf671490325716b803b8a9`
+This audit records the product and engineering constraints used to build Barkeep.
+Public menu bar manager source and permission-flow examples were reviewed at fixed
+revisions to understand platform behavior, failure modes, and user expectations.
 
-The source was cloned to `/tmp/nice-audit.uDHXp6`. Barkeep does not include files,
-assets, names, or code from either project.
+Barkeep is a clean-room implementation.
 
-## License result
+- No external source files, assets, names, or code are included.
+- Barkeep uses its own Swift implementation and native system frameworks.
+- External behavior was treated as research evidence, not as a specification.
+- Barkeep's product rules and live tests decide the final behavior.
 
-- Ice uses GPL-3.0.
-- SaneBar now uses MIT. It changed to MIT in June 2026.
-- Barkeep uses MIT.
-- Barkeep is a clean-room build, even where SaneBar permits reuse.
-- Anarlog uses MIT outside its separate `enterprise` folder. Barkeep studied
-  its public permission flow, but uses new Swift code and native SwiftUI.
+Barkeep is MIT licensed. Its core menu bar engine has no third-party runtime
+dependency. The update framework remains isolated from launch and menu bar behavior.
 
-## Size and dependencies
+## Barkeep product rules reviewed
 
-| Project | Swift source | Main packages | Test result |
-|---|---:|---|---|
-| Ice | about 18,156 lines | AXSwift, Sparkle, LaunchAtLogin, CompactSlider, Ifrit | No test target was found |
-| SaneBar | about 70,217 lines | KeyboardShortcuts, SaneUI, Sparkle, old Setapp code | Many tests exist, but its own audit says some tests only check source text |
-| Barkeep target | small by design | No runtime package for core behavior | Unit tests plus live tests |
-
-Barkeep uses Apple frameworks for its core behavior. A later release can use
-Sparkle as one small, isolated update module.
-
-## Feature map
-
-| Area | Ice | SaneBar | Barkeep rule |
-|---|---|---|---|
-| Three visibility sections | Yes | Yes | Make all three clear on the first screen |
-| Direct item arrangement | Yes | Yes | Drag or use a clear section menu |
-| Search and open an item | Yes | Yes | Fast cached search with keyboard control |
-| Panel below the menu bar | Yes | Yes | One compact native panel |
-| Full second menu bar | Yes | Yes | Optional, not the default |
-| Auto-hide | Yes | Yes | One timer with a visible state |
-| Hover, click, and scroll reveal | Yes | Yes | Off by default except click |
-| Always visible items | Indirect | Indirect and hard to find | A first-class section and promise |
-| Always hidden items | Yes | Yes | A first-class section |
-| Item hotkeys | Partial | Yes | Native global hotkeys |
-| Profiles | Roadmap | Yes | Save the three lists and related rules |
-| Groups | Roadmap | Yes | Optional labels in search, not a new layout system |
-| Smart triggers | Roadmap | Yes | Small event modules that can be fully disabled |
-| Touch ID lock | No | Yes | Optional LocalAuthentication gate |
-| Menu bar style | Yes | Yes | Optional overlay, kept outside the core engine |
-| Item spacing | Beta | Yes | Reversible system setting with a clear logout note |
-| Import and export | No | Yes | Versioned Barkeep JSON; import is separate code |
-| AppleScript | No | Yes | Small command surface with the same auth gate |
-| Updates | Sparkle | Sparkle | Signed updates only; no update prompt at launch |
+| Area | Barkeep rule |
+|---|---|
+| Visibility sections | Always visible, Hidden, and Always hidden stay distinct |
+| Item arrangement | A direct drag or section-menu action can request one move |
+| Move evidence | Use a fresh live frame before moving and confirm with fresh scans |
+| Failed moves | Keep the earlier saved rule and restore the earlier reveal state |
+| Search | Use the current snapshot and refresh only on request |
+| Reveal behavior | Click reveals Hidden; Option-click reveals all items |
+| Background work | Launch, wake, display events, timers, and updates never move items |
+| Permissions | Accessibility only for listing, opening, and moving menu bar items |
+| Saved data | Keep one local, versioned settings document with no saved geometry |
+| Updates | Signed updates remain separate from app launch and the menu bar engine |
 
 ## Main findings
 
-### Permission setup can guide the user in System Settings
+### Permission setup can stay short
 
-Anarlog does more than open a Privacy page. It places a small guide over the
-System Settings window and provides its app icon as a file drag source. The
-user drags the app into the Accessibility list and turns on the switch.
+The permission flow can do more than open a Privacy page while remaining narrow.
+Barkeep registers the Accessibility request, opens the exact settings page, follows
+the System Settings window with a small guide, and provides the signed app as a file
+drag source when it is missing from the list.
 
-Barkeep uses this behavior with a small reusable `PermissionAssistant`. It
-registers the permission request, opens the exact Accessibility page, follows
-the System Settings window, and closes when access is granted. Its drag source
-sends only the app file URL because the settings list rejects general URL data
-on some macOS versions.
+The drag source publishes only the app file URL. A stable signature is required:
+an unsigned or changing build can appear to drag while the system refuses to retain
+the permission.
 
-The app must have a valid signature. An unsigned build can appear to drag but
-macOS can refuse to add it to the list without an error.
+### macOS owns status items and live layout
 
-### 1. macOS owns the hard part
+There is no public API that assigns another process's status item to a Barkeep
+section. Barkeep uses its own status items as section boundaries and posts a
+user-initiated Command-drag when the user selects a new section.
 
-Apple does not provide a public API that assigns another app's status item to
-a section. Menu bar managers use their own status items as section boundaries.
-They use Accessibility and user-style Command-drag events for item moves.
+Saved geometry is never authoritative. Item frames are temporary evidence from the
+current scan and must not be written to disk. The move target, source frame, screen
+coordinates, and section boundaries must all come from the current open layout.
 
-This means an app must treat all saved geometry as a hint. A live status item
-frame is the only safe source for a move.
+### Move confirmation is more important than optimistic state
 
-### 2. Recovery code can make the app less reliable
+A Settings move follows one controlled sequence:
 
-The SaneBar history shows many failures after wake, display changes, and Space
-changes. Old geometry caused wrong moves. Automatic repair also moved the
-pointer and fought macOS.
+1. Open all sections.
+2. Scan the live menu bar.
+3. Match the selected item.
+4. Read current boundary frames.
+5. Normalize and validate both endpoints.
+6. Post one Command-drag.
+7. Return the pointer after the drop settles.
+8. Scan until the item reappears and its section is confirmed.
+9. Save only after confirmation.
+10. Restore the earlier reveal state.
 
-Barkeep will not make an automatic synthetic item move during wake, launch, or
-idle time. It can detect a problem and offer one Repair action. Only a direct
-user action can post a Command-drag event.
+The Settings columns must use section assignments captured with the same open
+boundary snapshot as their item frames. Reclassifying cached frames against a later
+collapsed boundary layout makes counts flap without any real move.
 
-### 3. macOS owns notch overflow
+### Recovery must not move the pointer
 
-On macOS 26, a synthetic drag can fail when its path crosses the camera notch.
-Screen Recording can expose more window data, but it adds a broad permission
-and still does not make all moves safe.
+Old geometry becomes unsafe after wake, display changes, and Space changes.
+Automatic repair can fight the user and move the pointer without a direct action.
 
-Barkeep starts with Accessibility only. It does not preemptively reject a Settings
-move because a straight cursor path crosses an estimated notch rectangle: macOS
-already owns menu bar overflow, and that check rejects valid moves on real notched
-MacBooks. Barkeep attempts the move and does not claim success until a live scan
-confirms the new section.
+Barkeep therefore does not post synthetic input during launch, wake, display events,
+app events, timers, or update work. It may invalidate stale evidence and explain a
+problem, but only a direct item-section action can move one item.
 
-### 4. macOS 27 is not a safe target yet
+### macOS owns notch overflow
 
-Both projects report that the macOS 27 beta changed the menu bar system. Their
-current section and move methods can fail. Barkeep targets macOS 14 through 26
-until a public and testable macOS 27 path exists.
+The system already decides which menu bar items fit around a camera housing and
+hides overflow when space runs out. A straight cursor path crossing the center of a
+notched display does not prove that a move cannot land.
 
-### 5. Idle work must stay near zero
+Barkeep does not preemptively reject a Settings move because of an estimated notch
+rectangle. Displays without a notch follow the same path. Barkeep validates the
+source, target, and current screen, attempts the move, and trusts fresh confirmation
+scans instead of guessing from the display shape.
 
-Ice has reports about WindowServer growth, freezes, and update windows. SaneBar
-has reports about memory growth, repeated recovery, and unwanted UI.
+### Idle work must stay near zero
 
-Barkeep will not scan menu bar items in a loop. It scans on request and after a
-small set of invalidation events. Optional triggers own their timers and stop
-them when the feature is off.
+Barkeep does not continuously scan Accessibility data. Settings and search request
+fresh scans when needed. Optional reveal triggers own their timers, event monitors,
+and observers and stop them when disabled.
 
-### 6. Install and update work must be separate
+### Install and update work stays separate
 
-Both projects have user reports about install or update trouble. Barkeep keeps
-the update module outside the menu bar engine. A failed update check cannot
-block app start or open a modal window. Release builds must be signed,
-notarized, and tested as the same archive that users download.
+Update checks cannot block launch, open an unrelated modal window, or delay the menu
+bar engine. Release builds must be signed, notarized, and tested from the same archive
+that users download.
 
 ## Product problems to avoid
 
-- Do not hide the difference between Always visible and Hidden.
+- Do not blur the difference between Always visible and Hidden.
 - Do not make the user learn modifier-click rules before setup works.
 - Do not put normal controls in an Advanced page.
-- Do not show a large onboarding flow.
+- Do not add a large onboarding flow.
 - Do not repair a layout by moving the pointer in the background.
-- Do not rebuild status items on every app, Space, or display event.
-- Do not use cached pixels after the display layout changes.
+- Do not rebuild status items for every app, Space, or display event.
+- Do not classify cached item frames against unrelated boundary geometry.
 - Do not report a move as complete before a live scan confirms it.
+- Do not guess that a camera housing blocked a move.
 - Do not make updates part of app launch.
 
 ## Test gates for Barkeep
 
-The release test must check real behavior, not source text:
+Automated tests must cover pure state, boundary, target, and coordinate logic.
+Release validation must also check real behavior with the signed app because
+source-text tests cannot prove that synthetic input moved a status item.
 
 - The app stays hidden and opens no window while idle.
-- Always visible items stay to the right of the Hidden boundary.
+- Always visible items, including protected system items, classify correctly.
+- Empty sections accept their first item.
 - A direct move changes the real section and stays there.
 - A failed move leaves the saved rule unchanged.
 - Item order stays stable after relaunch and wake.
-- A display change invalidates all saved geometry.
+- Display changes invalidate temporary geometry.
+- Notched and non-notched displays allow normal Settings moves.
 - No passive event moves the pointer.
-- Touch ID blocks all reveal paths, including automation.
+- Authentication protects every reveal path.
 - Search opens and closes without keeping a scan timer alive.
 - Update failure does not delay app start.
