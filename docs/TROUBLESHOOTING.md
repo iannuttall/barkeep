@@ -22,9 +22,13 @@ Do not move the app after macOS grants access.
 
 ## An item does not move to its new section
 
-Barkeep rejects a move when the source frame, target point, or screen is not safe. macOS decides
-how menu bar overflow fits around a camera notch. Barkeep saves the new section only when a second
+Barkeep rejects a move when the source frame, target point, or screen is not safe. Before the drag
+starts, Barkeep waits until the item shows a stable position on the screen. macOS decides how menu
+bar overflow fits around a camera notch. Barkeep saves the new section only when a second
 Accessibility scan confirms that macOS completed the move.
+
+macOS keeps some Apple items, for example Clock and Control Center, on the far right side. A
+Command-drag cannot move these items past the Barkeep icon. This is a macOS limit.
 
 Use these checks in order.
 
