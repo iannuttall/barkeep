@@ -47,6 +47,9 @@ Barkeep keeps the old saved section after a failed move.
 
 ## Hidden items appear again too soon
 
+Barkeep does not hide items while the pointer stays in the menu bar area or while a menu is open.
+The hide delay starts to apply after you move the pointer away.
+
 Open **Behavior** settings. Increase **Hide delay** or turn off **Hide items again**. Also check
 the click, scroll, hover, app-change, and external-display settings. More than one enabled trigger
 can change the current reveal state.

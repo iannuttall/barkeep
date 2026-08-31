@@ -349,9 +349,42 @@ final class AppCoordinator: NSObject, ObservableObject {
         let delay = store.settings.rehideDelay
         rehideTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(delay))
+            // Stay open while the pointer is in the menu bar area or a menu
+            // is open, so the bar never hides mid-interaction.
+            while !Task.isCancelled, Self.pointerIsBusyInMenuBar() {
+                try? await Task.sleep(for: .milliseconds(500))
+            }
             guard !Task.isCancelled else { return }
             self?.hide()
         }
+    }
+
+    private static func pointerIsBusyInMenuBar() -> Bool {
+        let location = NSEvent.mouseLocation
+        if NSScreen.screens.contains(where: {
+            Self.isInMenuBarStrip(location: location, screenFrame: $0.frame)
+        }) {
+            return true
+        }
+        return menuIsOpen()
+    }
+
+    static func isInMenuBarStrip(location: CGPoint, screenFrame: CGRect) -> Bool {
+        location.x >= screenFrame.minX &&
+        location.x <= screenFrame.maxX &&
+        location.y >= screenFrame.maxY - 38 &&
+        location.y <= screenFrame.maxY
+    }
+
+    private static func menuIsOpen() -> Bool {
+        guard let windows = CGWindowListCopyWindowInfo(
+            .optionOnScreenOnly,
+            kCGNullWindowID
+        ) as? [[String: Any]] else {
+            return false
+        }
+        let menuLayer = Int(CGWindowLevelForKey(.popUpMenuWindow))
+        return windows.contains { ($0[kCGWindowLayer as String] as? Int) == menuLayer }
     }
 
     private func authenticate(onSuccess: @escaping @MainActor () -> Void) {
