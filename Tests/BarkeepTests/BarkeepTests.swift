@@ -213,6 +213,20 @@ final class BarkeepTests: XCTestCase {
         XCTAssertFalse(settings.reduceItemSpacing)
     }
 
+    @MainActor
+    func testMenuBarStripDetection() {
+        let frame = CGRect(x: 0, y: 0, width: 1728, height: 1117)
+        XCTAssertTrue(AppCoordinator.isInMenuBarStrip(
+            location: CGPoint(x: 900, y: 1100), screenFrame: frame
+        ))
+        XCTAssertFalse(AppCoordinator.isInMenuBarStrip(
+            location: CGPoint(x: 900, y: 1000), screenFrame: frame
+        ))
+        XCTAssertFalse(AppCoordinator.isInMenuBarStrip(
+            location: CGPoint(x: 2000, y: 1100), screenFrame: frame
+        ))
+    }
+
     func testNotchOverflowDetection() {
         let notched = ScreenGeometry(
             coordinates: ScreenCoordinateSpace(
