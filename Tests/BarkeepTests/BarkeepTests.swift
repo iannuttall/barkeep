@@ -213,6 +213,55 @@ final class BarkeepTests: XCTestCase {
         XCTAssertFalse(settings.reduceItemSpacing)
     }
 
+    func testNotchOverflowDetection() {
+        let notched = ScreenGeometry(
+            coordinates: ScreenCoordinateSpace(
+                appKitFrame: CGRect(x: 0, y: 0, width: 1728, height: 1117),
+                quartzFrame: CGRect(x: 0, y: 0, width: 1728, height: 1117)
+            ),
+            statusAreaMinX: 1010
+        )
+        XCTAssertTrue(notched.hidesMenuBarPoint(CGPoint(x: 896, y: 16.5)))
+        XCTAssertFalse(notched.hidesMenuBarPoint(CGPoint(x: 1200, y: 16.5)))
+        XCTAssertFalse(notched.hidesMenuBarPoint(CGPoint(x: 896, y: 500)))
+        XCTAssertFalse(notched.hidesMenuBarPoint(CGPoint(x: -100, y: 16.5)))
+
+        let flat = ScreenGeometry(
+            coordinates: notched.coordinates
+        )
+        XCTAssertFalse(flat.hidesMenuBarPoint(CGPoint(x: 896, y: 16.5)))
+    }
+
+    func testPinnedByMacOSDetection() {
+        func snapshot(bundle: String?, stablePart: String) -> MenuBarItemSnapshot {
+            MenuBarItemSnapshot(
+                id: "\(bundle ?? "pid:1")|\(stablePart)",
+                displayName: "Item",
+                ownerName: "Owner",
+                bundleIdentifier: bundle,
+                frame: CGRect(x: 10, y: 10, width: 20, height: 20),
+                isEnabled: true
+            )
+        }
+
+        XCTAssertTrue(snapshot(
+            bundle: "com.apple.controlcenter",
+            stablePart: "com.apple.menuextra.clock"
+        ).isPinnedByMacOS)
+        XCTAssertTrue(snapshot(
+            bundle: "com.apple.controlcenter",
+            stablePart: "com.apple.menuextra.controlcenter"
+        ).isPinnedByMacOS)
+        XCTAssertFalse(snapshot(
+            bundle: "com.apple.controlcenter",
+            stablePart: "com.apple.menuextra.battery"
+        ).isPinnedByMacOS)
+        XCTAssertFalse(snapshot(
+            bundle: "com.example.app",
+            stablePart: "com.apple.menuextra.clock"
+        ).isPinnedByMacOS)
+    }
+
     @MainActor
     func testStateRoundTrip() throws {
         let baseURL = FileManager.default.temporaryDirectory

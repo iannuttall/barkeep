@@ -2,6 +2,9 @@ import AppKit
 import Combine
 import LocalAuthentication
 import UniformTypeIdentifiers
+import os
+
+private let moveLog = Logger(subsystem: "is.ian.barkeep", category: "move")
 
 private struct MoveConfirmation {
     let items: [MenuBarItemSnapshot]
@@ -146,11 +149,15 @@ final class AppCoordinator: NSObject, ObservableObject {
     }
 
     func items(in zone: VisibilityZone) -> [MenuBarItemSnapshot] {
-        items.filter { currentZone(for: $0) == zone }
+        items.filter { !$0.isPinnedByMacOS && currentZone(for: $0) == zone }
     }
 
     func moveItem(_ item: MenuBarItemSnapshot, to zone: VisibilityZone) async {
         guard movingItemID == nil, !isScanning else { return }
+        guard !item.isPinnedByMacOS else {
+            message = BarkeepError.itemPinnedByMacOS.localizedDescription
+            return
+        }
         guard AccessibilityPermission.isGranted else {
             AccessibilityPermission.request()
             message = BarkeepError.accessibilityRequired.localizedDescription
@@ -180,8 +187,20 @@ final class AppCoordinator: NSObject, ObservableObject {
             let reveal = try await waitForRevealedItem(matching: item, screens: screens)
             let freshItems = reveal.items
             let freshItem = reveal.item
+            moveLog.notice("""
+            move \(item.id, privacy: .public) -> \(zone.title, privacy: .public) \
+            source=\(String(describing: freshItem.frame), privacy: .public)
+            """)
             guard let target = statusBar.targetPoint(for: zone) else {
                 throw BarkeepError.boundariesUnavailable
+            }
+            if let boundaries = statusBar.boundaryFrames() {
+                moveLog.notice("""
+                boundaries control=\(String(describing: boundaries.control), privacy: .public) \
+                hidden=\(String(describing: boundaries.hidden), privacy: .public) \
+                alwaysHidden=\(String(describing: boundaries.alwaysHidden), privacy: .public) \
+                target=\(String(describing: target), privacy: .public)
+                """)
             }
             guard let quartzTarget = screens.lazy.compactMap({
                 $0.coordinates.quartzPoint(fromAppKit: target)
@@ -198,6 +217,11 @@ final class AppCoordinator: NSObject, ObservableObject {
                 abs($0.y - quartzTarget.y) < abs($1.y - quartzTarget.y)
             }) else {
                 throw BarkeepError.invalidGeometry
+            }
+            if screens.contains(where: {
+                $0.hidesMenuBarPoint(quartzSource) || $0.hidesMenuBarPoint(quartzTarget)
+            }) {
+                throw BarkeepError.menuBarFull
             }
             let quartzSourceFrame = CGRect(
                 x: quartzSource.x - freshItem.frame.width / 2,
@@ -366,11 +390,17 @@ final class AppCoordinator: NSObject, ObservableObject {
                 return nil
             }
             let displayID = CGDirectDisplayID(number.uint32Value)
+            let quartzFrame = CGDisplayBounds(displayID)
+            var statusAreaMinX: CGFloat?
+            if screen.safeAreaInsets.top > 0, let statusArea = screen.auxiliaryTopRightArea {
+                statusAreaMinX = quartzFrame.minX + statusArea.minX - screen.frame.minX
+            }
             return ScreenGeometry(
                 coordinates: ScreenCoordinateSpace(
                     appKitFrame: screen.frame,
-                    quartzFrame: CGDisplayBounds(displayID)
-                )
+                    quartzFrame: quartzFrame
+                ),
+                statusAreaMinX: statusAreaMinX
             )
         }
     }
@@ -400,6 +430,10 @@ final class AppCoordinator: NSObject, ObservableObject {
                   let boundaries = statusBar.boundaryFrames() else {
                 continue
             }
+            moveLog.notice("""
+            confirm scan frame=\(String(describing: verifiedItem.frame), privacy: .public) \
+            zone=\(boundaries.zone(for: verifiedItem.frame).title, privacy: .public)
+            """)
             if boundaries.zone(for: verifiedItem.frame) == zone {
                 return MoveConfirmation(
                     items: scannedItems,
@@ -443,6 +477,9 @@ final class AppCoordinator: NSObject, ObservableObject {
                 ) != nil
             }
             guard onScreen else {
+                moveLog.notice(
+                    "reveal wait: off screen \(String(describing: match.frame), privacy: .public)"
+                )
                 previousFrame = nil
                 continue
             }
