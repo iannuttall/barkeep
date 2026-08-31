@@ -28,7 +28,12 @@ bar overflow fits around a camera notch. Barkeep saves the new section only when
 Accessibility scan confirms that macOS completed the move.
 
 macOS keeps some Apple items, for example Clock and Control Center, on the far right side. A
-Command-drag cannot move these items past the Barkeep icon. This is a macOS limit.
+Command-drag cannot move these items, so Barkeep does not show them in the Items screen.
+
+On a Mac with a camera notch, the menu bar can become full. macOS then parks the leftmost items
+behind the notch and does not draw them. Barkeep cannot drag an item that macOS does not draw, and
+it shows a clear "menu bar is full" message. Close some menu bar apps or turn on tighter item
+spacing, then try again.
 
 Use these checks in order.
 

@@ -4,9 +4,21 @@ import Foundation
 
 struct ScreenGeometry: Sendable {
     let coordinates: ScreenCoordinateSpace
+    /// Quartz x where macOS can start to draw status items on a notched display.
+    /// Items that overflow to the left of this line are laid out but never drawn.
+    var statusAreaMinX: CGFloat? = nil
 
     var frame: CGRect {
         coordinates.quartzFrame
+    }
+
+    func hidesMenuBarPoint(_ point: CGPoint) -> Bool {
+        guard let statusAreaMinX,
+              frame.insetBy(dx: -2, dy: -2).contains(point),
+              point.y <= frame.minY + 40 else {
+            return false
+        }
+        return point.x < statusAreaMinX
     }
 }
 

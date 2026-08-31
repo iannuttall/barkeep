@@ -118,6 +118,17 @@ struct MenuBarItemSnapshot: Identifiable, Hashable, Sendable {
     let isEnabled: Bool
 }
 
+extension MenuBarItemSnapshot {
+    /// macOS pins the Clock and Control Center on the far right of the menu bar
+    /// and rejects every Command-drag on them, so Barkeep never offers to move them.
+    var isPinnedByMacOS: Bool {
+        bundleIdentifier == "com.apple.controlcenter" && (
+            id.hasSuffix("|com.apple.menuextra.clock") ||
+            id.hasSuffix("|com.apple.menuextra.controlcenter")
+        )
+    }
+}
+
 struct BoundaryFrames: Sendable {
     let control: CGRect
     let hidden: CGRect
@@ -193,6 +204,8 @@ enum BarkeepError: LocalizedError {
     case accessibilityRequired
     case itemNotFound
     case itemNotRevealed
+    case itemPinnedByMacOS
+    case menuBarFull
     case boundariesUnavailable
     case invalidGeometry
     case moveNotConfirmed
@@ -203,6 +216,8 @@ enum BarkeepError: LocalizedError {
         case .accessibilityRequired: "Give Barkeep Accessibility access to list and move menu bar items."
         case .itemNotFound: "Barkeep could not find this item in the current menu bar."
         case .itemNotRevealed: "This item did not appear on the screen. Barkeep kept the old section."
+        case .itemPinnedByMacOS: "macOS keeps this item on the right side. Barkeep cannot move it."
+        case .menuBarFull: "The menu bar is full, and macOS hides this spot behind the notch. Close some menu bar apps or turn on tighter spacing, then try again."
         case .boundariesUnavailable: "Barkeep could not find its section boundaries."
         case .invalidGeometry: "The current menu bar layout is not safe for this move."
         case .moveNotConfirmed: "macOS did not complete the move. Barkeep kept the old section."
