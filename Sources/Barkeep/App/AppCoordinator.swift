@@ -177,11 +177,9 @@ final class AppCoordinator: NSObject, ObservableObject {
             }).first else {
                 throw BarkeepError.invalidGeometry
             }
-            try await Task.sleep(for: .milliseconds(160))
-            let freshItems = await scanner.scan(apps: runningApps())
-            guard let freshItem = freshItems.first(where: { matches($0, item) }) else {
-                throw BarkeepError.itemNotFound
-            }
+            let reveal = try await waitForRevealedItem(matching: item, screens: screens)
+            let freshItems = reveal.items
+            let freshItem = reveal.item
             guard let target = statusBar.targetPoint(for: zone) else {
                 throw BarkeepError.boundariesUnavailable
             }
@@ -418,6 +416,44 @@ final class AppCoordinator: NSObject, ObservableObject {
         items = confirmation.items
         store.setRule(for: confirmation.item, zone: zone)
         message = "\(confirmation.item.displayName) is now \(zone.title.lowercased())."
+    }
+
+    /// Always-hidden items slide in from off screen after revealAll, so a fixed delay
+    /// can scan a frame that is still off screen or still animating. Poll until the
+    /// item reports the same on-screen frame twice before using it as a drag source.
+    private func waitForRevealedItem(
+        matching item: MenuBarItemSnapshot,
+        screens: [ScreenGeometry]
+    ) async throws -> (items: [MenuBarItemSnapshot], item: MenuBarItemSnapshot) {
+        var sawItem = false
+        var previousFrame: CGRect?
+        for _ in 0..<16 {
+            try await Task.sleep(for: .milliseconds(140))
+            let scannedItems = await scanner.scan(apps: runningApps())
+            guard let match = scannedItems.first(where: { matches($0, item) }) else {
+                previousFrame = nil
+                continue
+            }
+            sawItem = true
+            let source = CGPoint(x: match.frame.midX, y: match.frame.midY)
+            let onScreen = screens.contains {
+                $0.coordinates.quartzPoint(
+                    fromAccessibility: source,
+                    menuBarAnchorY: source.y
+                ) != nil
+            }
+            guard onScreen else {
+                previousFrame = nil
+                continue
+            }
+            if let previous = previousFrame,
+               abs(previous.midX - match.frame.midX) < 1,
+               abs(previous.midY - match.frame.midY) < 1 {
+                return (scannedItems, match)
+            }
+            previousFrame = match.frame
+        }
+        throw sawItem ? BarkeepError.itemNotRevealed : BarkeepError.itemNotFound
     }
 
     private func matches(_ lhs: MenuBarItemSnapshot, _ rhs: MenuBarItemSnapshot) -> Bool {

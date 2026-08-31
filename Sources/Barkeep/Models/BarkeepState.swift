@@ -192,6 +192,7 @@ struct ScreenCoordinateSpace: Sendable {
 enum BarkeepError: LocalizedError {
     case accessibilityRequired
     case itemNotFound
+    case itemNotRevealed
     case boundariesUnavailable
     case invalidGeometry
     case moveNotConfirmed
@@ -201,6 +202,7 @@ enum BarkeepError: LocalizedError {
         switch self {
         case .accessibilityRequired: "Give Barkeep Accessibility access to list and move menu bar items."
         case .itemNotFound: "Barkeep could not find this item in the current menu bar."
+        case .itemNotRevealed: "This item did not appear on the screen. Barkeep kept the old section."
         case .boundariesUnavailable: "Barkeep could not find its section boundaries."
         case .invalidGeometry: "The current menu bar layout is not safe for this move."
         case .moveNotConfirmed: "macOS did not complete the move. Barkeep kept the old section."
