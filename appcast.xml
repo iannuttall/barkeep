@@ -6,6 +6,27 @@
         <language>en</language>
         <!-- NEW_RELEASES -->
         <item>
+            <title>0.1.1</title>
+            <pubDate>Mon, 31 Aug 2026 10:12:20 +0100</pubDate>
+            <sparkle:version>2</sparkle:version>
+            <sparkle:shortVersionString>0.1.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[Barkeep 0.1.1 makes item moves more reliable and makes failure messages clear.
+
+- Barkeep now waits until a hidden item is really on the screen before it starts a move
+- A clear message appears when the menu bar is full and macOS parks the item behind the camera notch
+- A clear message appears when an item never comes on the screen
+- Clock and Control Center no longer appear in the Items screen, because macOS pins them and lets no app move them
+- The hidden bar stays open while the pointer is in the menu bar area or while a menu is open, and it hides after you move away
+- The troubleshooting guide explains the new messages and these macOS limits
+
+Barkeep has no account, analytics, or Screen Recording access. It requires a Mac running macOS 14
+or later. Existing installs update through Sparkle. New users can download the DMG and drag
+Barkeep to Applications.
+]]></description>
+            <enclosure url="https://github.com/iannuttall/barkeep/releases/download/v0.1.1/Barkeep-0.1.1.dmg" length="2604232" type="application/octet-stream" sparkle:edSignature="IejrlWjxf5bgcR96q1DnU3gsrwjaiFsv3ZRbaFnNn1AtvJSVZs2RHJjtz1y7KL5FGUuulgePPxhcqDPS9oeXDw=="/>
+        </item>
+        <item>
             <title>0.1.0</title>
             <pubDate>Sun, 23 Aug 2026 22:10:23 +0100</pubDate>
             <sparkle:version>1</sparkle:version>
